@@ -421,10 +421,11 @@ function renderStart(){
         el("div",{class:"seg",role:"group","aria-label":"Набор ситуаций"},
           poolBtn("all","Все (14)"),poolBtn("warm","Разминка (10)"),poolBtn("hard","Жесткие (4)"),
           weak? poolBtn("weak","Мои слабые ("+weak+")") : null)),
-      TEAM_URL ? el("div",{class:"row"},el("label",{for:"nm"},"Имя для таблицы команды"),el("input",{type:"text",id:"nm",maxlength:"40",placeholder:"Например, Мария Л.",value:P.name||"",oninput:e=>{P.name=e.target.value;save();}})) : null,
+      TEAM_URL ? el("div",{class:"row"},el("label",{for:"nm"},"Имя для таблицы команды"),el("input",{type:"text",id:"nm",maxlength:"40",placeholder:"Например, Мария Л.",value:P.name||"",oninput:e=>{P.name=e.target.value;save();const g=$("#go");if(g)g.disabled=!(P.name||"").trim();const h=$("#nm-hint");if(h)h.hidden=!!(P.name||"").trim();}})) : null,
+      TEAM_URL ? el("p",{class:"note",id:"nm-hint",hidden:!!(P.name||"").trim()},"Введите имя, чтобы начать: оно нужно для общей таблицы команды.") : null,
       el("div",{class:"row spread"},
         el("label",{class:"check"},el("input",{type:"checkbox",id:"timed",checked:cfg.timed,onchange:e=>{cfg.timed=e.target.checked;}}),"На время, 45 секунд на ответ"),
-        el("button",{class:"btn primary",id:"go",type:"button",onclick:startRun},"Начать раунд"))),
+        el("button",{class:"btn primary",id:"go",type:"button",disabled:!!(TEAM_URL && !(P.name||"").trim()),onclick:startRun},"Начать раунд"))),
     el("section",{class:"card"},
       el("h2",{},"Модель ответа"),
       el("div",{class:"steps"},STEPS.map(([a,b],i)=>el("div",{class:"step"},el("b",{},(i+1)+". "+a),el("span",{},b))))),
@@ -433,6 +434,7 @@ function renderStart(){
       el("ul",{class:"rules"},RULES.map(r=>el("li",{},r)))));
 }
 function startRun(){
+  if(TEAM_URL && !(P.name||"").trim()){ const n=$("#nm"); if(n) n.focus(); return; }
   let pool = poolFor(cfg.pool); if(!pool.length) pool = S;
   const list = shuffle(pool).slice(0,8).sort((a,b)=>a.lvl-b.lvl);
   run = {list,i:0,score:0,streak:0,maxStreak:0,answers:[],picked:null,left:45,timer:null,done:false,tAsk:Date.now(),times:[]};
