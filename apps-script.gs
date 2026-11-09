@@ -11,9 +11,32 @@ function sheet_() {
   return sh;
 }
 
+function answers_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName("Answers");
+  if (!sh) {
+    sh = ss.insertSheet("Answers");
+    sh.appendRow(["time", "name", "situation_id", "situation", "answer", "red_flags", "warnings", "comment"]);
+  }
+  return sh;
+}
+
 function doPost(e) {
   try {
     const d = JSON.parse(e.postData.contents);
+    if (d.kind === "answer") {
+      answers_().appendRow([
+        new Date(),
+        String(d.name || "").slice(0, 40),
+        String(d.id || ""),
+        String(d.situation || ""),
+        String(d.text || "").slice(0, 2000),
+        Number(d.bad) || 0,
+        Number(d.warn) || 0,
+        ""
+      ]);
+      return ContentService.createTextOutput("ok");
+    }
     sheet_().appendRow([
     new Date(),
     String(d.name || "").slice(0, 40),

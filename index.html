@@ -1281,25 +1281,84 @@ function bar(label,v,max,good){
 }
 
 /* ---------- свой ответ ---------- */
-let freeState = {text:"",showRef:false,checks:{}};
+let freeState = {text:"",showRef:false,checks:{},sent:"",sentMsg:""};
+const freshFree = ()=>({text:"",showRef:false,checks:{},sent:"",sentMsg:""});
+
+/* ---------- быстрая проверка текста: подсказки, не оценка ---------- */
+function analyze(text,s){
+  const t = text.toLowerCase(), out = [];
+  const bad = m=>out.push({k:"bad",m}), warn = m=>out.push({k:"warn",m}), info = m=>out.push({k:"info",m}), ok = m=>out.push({k:"ok",m});
+  if(text.trim().length<25) warn("Слишком коротко. В ответе нужны факт и следующий шаг.");
+  if(["ТД","СО","БД"].includes(s.role) && /в\s+личк|в\s+лс(?![а-яё])|лично\s+(напиш|спрош)|в\s+telegram|в\s+телеграм|в\s+whatsapp|в\s+вотсап|(?<![a-z])dm(?![a-z])/.test(t)) bad("Личка. Вопросы и договоренности идут только в YouTrack, в задаче.");
+  if(/друг(их|им|ие|ого|ому)\s+(ваш|наш|клиент)|у\s+других\s+клиент|other\s+clients|another\s+client/.test(t)) bad("Упомянуты другие клиенты. Чужих клиентов не упоминаем никогда.");
+  if(/скидк|компенсац|рассрочк|бесплатно|вернем\s+деньг|выставим\s+счет|выставим\s+счёт|добав(им|ите)\s+(людей|человек|ресурс)|refund|discount|free\s+of\s+charge|add\s+(more\s+)?people/.test(t) && !/(?<![а-яёa-z])бд(?![а-яёa-z])|менеджмент|руководств|management|account\s+team/.test(t)) bad("Деньги, условия и ресурс обещаем только через БД. Передайте запрос БД с фактами.");
+  if(/вам\s+просто\s+лень|не\s+надо\s+(так|учить)|вы\s+(сами|всегда|вечно|опять)(?![а-яё])|вы\s+же\s+сами|не\s+учите\s+нас/.test(t)) bad("Контратака. Тон колкости оставляем без внимания и отвечаем на факт.");
+  if(/у\s+нас\s+(была\s+)?(большая\s+)?загрузк|мы\s+(же\s+)?(уже\s+)?(говорили|отвечали|писали|объясняли|сообщали)|не\s+наша\s+вина|это\s+не\s+мы(?![а-яё])|это\s+вы(?![а-яё])|we\s+(already\s+)?(told|answered|explained)|not\s+our\s+fault/.test(t)) warn("Звучит как оправдание или спор «кто что говорил». Лучше признать факт и дать шаг.");
+  if(/постараемся|сделаем\s+все\s+возможное|сделаем\s+всё\s+возможное|do\s+our\s+best|try\s+our\s+best|понимаем\s+вашу\s+обеспокоенность|жаль,?\s+что\s+вы\s+так|sorry\s+you\s+feel|understand\s+your\s+concern/.test(t)) warn("Пустая фраза без даты и шага. Замените конкретикой: кто, что, когда.");
+  const hasDeadline = /\d{1,2}[:.]\d{2}|до\s+\d|до\s+(конца|завтра|сегодня|пятниц|понедельник|вторник|сред|четверг)|сегодня|завтра|\[дата\]|\[время\]|\[date|\[time|by\s+(\d|\[|today|tomorrow|monday|tuesday|wednesday|thursday|friday|end)|within\s+\d/.test(t);
+  const hasStep = /\?|подскажите|уточн|предлаг|предлож|расскаж|напишите|ответьте|подтвердите|нужен\s+ответ|дам(?![а-яё])|дадим|назову|верну|передаю|сообщаю|назначаю|ответственн|заменит|you\s+will\s+(have|get|receive)|responsible|focus\s+on|respectful|давайте|пришл|сообщ|выясн|назнач|согласу|проверим|проверю|дополню|внесу|добавим|добавлю|передам|вынесу|заведу|зафиксир|верн(у|емся)|напишу|подготовл|созвон|could\s+you|can\s+you|will\s+(send|share|pass|bring|come)|i\s+will|let\s+us|propose/.test(t);
+  if(/(сделаем|исправим|уложимся|будет\s+готов\w*|закончим|we\s+will\s+(fix|deliver|finish)|will\s+be\s+ready)/.test(t) && !/оценк|estimate/.test(t) && ["КЛ","БД"].includes(s.role)) warn("Срок обещан без оценки техдепа. Срок называем только после оценки.");
+  const apology = /извин|прошу\s+прощения|простите|sorry|apolog/.test(t);
+  if(apology && !(hasDeadline && hasStep)) warn("Извинение без шага и срока. Один раз признайте и сразу дайте шаг.");
+  hasDeadline ? ok("Есть срок или время.") : info("Срока или времени не видно. Если ответ его требует, добавьте: «до 16:00», «до [дата]».");
+  hasStep ? ok("Есть вопрос или следующий шаг.") : warn("Нет вопроса или шага. Что вы сделаете или спросите?");
+  const order = {bad:0,warn:1,info:2,ok:3};
+  return out.sort((a,b)=>order[a.k]-order[b.k]);
+}
+function hintsCard(s){
+  const r = analyze(freeState.text,s);
+  const nb = r.filter(x=>x.k==="bad").length, nw = r.filter(x=>x.k==="warn").length;
+  const mark = {bad:"Ошибка",warn:"Проверьте",info:"Подумайте",ok:"Есть"};
+  return el("section",{class:"card"},
+    el("h2",{style:"margin:0"},"Быстрая проверка"),
+    el("p",{class:"note"},"Это подсказки по словам в тексте, а не оценка. Они ловят типичные ошибки, но смысл ответа проверяйте по эталону."),
+    el("ul",{class:"miss"},r.map(x=>el("li",{},el("span",{class:x.k==="bad"?"trap":"pill"},mark[x.k]),el("span",{style:"flex:1;min-width:200px"},x.m)))),
+    nb===0 && nw===0 ? el("div",{class:"box key"},el("p",{},"Типичных ошибок не видно. Сверьтесь с эталоном: попали ли вы в факт и в суть.")) : null);
+}
+
+/* ---------- отправка ответа на разбор ---------- */
+async function sendAnswer(){
+  const name = (P.name||"").trim(), s = BYID[freeId], txt = freeState.text.trim();
+  if(!TEAM_URL || !name || txt.length<8) return;
+  freeState.sent = "pending"; render();
+  const fl = analyze(txt,s);
+  try{
+    const res = await fetch(TEAM_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({kind:"answer",name,id:s.id,situation:s.type,text:txt.slice(0,2000),bad:fl.filter(x=>x.k==="bad").length,warn:fl.filter(x=>x.k==="warn").length})});
+    const out = (await res.text()).trim();
+    freeState.sent = out==="ok" ? "ok" : "err";
+    freeState.sentMsg = out==="ok" ? "" : out.replace(/<[^>]+>/g," ").replace(/\s+/g," ").slice(0,160);
+  }catch(e){ freeState.sent="err"; freeState.sentMsg=String(e&&e.message||e); }
+  if(tab==="free") render();
+}
+
 function renderFree(){
   const s = BYID[freeId];
-  const sel = el("select",{id:"free-sel","aria-label":"Ситуация",onchange:e=>{freeId=e.target.value;freeState={text:"",showRef:false,checks:{}};render();}},
+  const sel = el("select",{id:"free-sel","aria-label":"Ситуация",onchange:e=>{freeId=e.target.value;freeState=freshFree();render();}},
     S.map(x=>el("option",{value:x.id,selected:x.id===freeId},"Ур. "+x.lvl+" · "+x.type+" · "+x.who)));
   const ta = el("textarea",{id:"free-text",placeholder:"Напишите ответ так, как отправили бы его в задачу или чат…",oninput:e=>{freeState.text=e.target.value;}});
   ta.value = freeState.text;
+  const hasName = !!(P.name||"").trim();
+  const sentNote = freeState.sent==="pending" ? "Отправляю…" : freeState.sent==="ok" ? "Ответ отправлен на разбор." :
+    freeState.sent==="err" ? "Не отправлено: "+(freeState.sentMsg||"нет ответа от таблицы")+"." : "";
   main.append(
     el("section",{class:"card"},
       el("h2",{},"Свой ответ"),
-      el("p",{class:"lead"},"Выберите ситуацию и напишите ответ так, как отправили бы его. Потом сверьтесь с эталоном и чек-листом: пауза, факт, интерес, шаг."),
+      el("p",{class:"lead"},"Выберите ситуацию и напишите ответ так, как отправили бы его. Потом нажмите «Проверить себя»: страница покажет быстрые подсказки по тексту, эталон и чек-лист."),
       sel),
     messageCard(s),
     el("section",{class:"card"},
       ta,
       el("div",{class:"row spread"},
-        el("span",{class:"note"},"Ответ нигде не сохраняется."),
-        el("button",{class:"btn primary",type:"button",onclick:()=>{freeState.showRef=true;render();}},"Проверить себя")),
-      ),
+        el("span",{class:"note"},TEAM_URL ? "Ответ сохраняется только если вы нажмете «Отправить на разбор»." : "Ответ нигде не сохраняется."),
+        el("div",{class:"row"},
+          TEAM_URL && freeState.showRef ? el("button",{class:"btn",id:"send-ans",type:"button",disabled:!hasName||freeState.sent==="pending"||freeState.sent==="ok",onclick:sendAnswer},"Отправить на разбор") : null,
+          el("button",{class:"btn primary",id:"check",type:"button",onclick:()=>{
+            if(freeState.text.trim().length<8){ const n=$("#free-note"); if(n) n.textContent="Сначала напишите ответ."; return; }
+            freeState.showRef=true; render(); }},"Проверить себя"))),
+      el("p",{class:"note",id:"free-note"},
+        TEAM_URL && freeState.showRef && !hasName ? "Чтобы отправить на разбор, укажите имя на вкладке «Раунд»." : sentNote)),
+    freeState.showRef ? hintsCard(s) : null,
     freeState.showRef ? refCard(s) : null);
 }
 function refCard(s){
@@ -1374,6 +1433,7 @@ function aggregate(rows){
   const m = {};
   rows.forEach(r=>{
     const name = String(r.name||"").trim(); if(!name) return;
+    if(!Number(r.n)) return;
     const k = name.toLowerCase();
     const a = m[k] || (m[k]={name,rounds:0,s:0,n:0,best:0,streak:0,traps:{}});
     a.rounds++; a.s+=Number(r.score)||0; a.n+=Number(r.n)||0;
