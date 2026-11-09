@@ -12,8 +12,9 @@ function sheet_() {
 }
 
 function doPost(e) {
-  const d = JSON.parse(e.postData.contents);
-  sheet_().appendRow([
+  try {
+    const d = JSON.parse(e.postData.contents);
+    sheet_().appendRow([
     new Date(),
     String(d.name || "").slice(0, 40),
     Number(d.score) || 0,
@@ -21,8 +22,11 @@ function doPost(e) {
     String(d.pool || ""),
     Number(d.streak) || 0,
     String(d.trap || "").slice(0, 60)
-  ]);
-  return ContentService.createTextOutput("ok");
+    ]);
+    return ContentService.createTextOutput("ok");
+  } catch (err) {
+    return ContentService.createTextOutput("error: " + err.message);
+  }
 }
 
 function doGet() {

@@ -557,6 +557,11 @@ function renderRunEnd(){
     miss.length ? el("section",{class:"card"},
       el("h2",{},"Промахи: потренируйте письменно"),
       el("ul",{class:"miss"},miss.map(a=>{ const s=BYID[a.id]; return el("li",{},el("q",{},s.text),el("button",{class:"btn",type:"button",onclick:()=>{freeId=s.id;setTab("free");}},"Ответить своими словами")); }))) : null,
+    TEAM_URL ? el("p",{class:"note",id:"sent"},
+      run.sent==="pending" ? "Отправляю результат в таблицу команды…" :
+      run.sent==="ok" ? "Результат отправлен в таблицу команды." :
+      run.sent==="err" ? "Результат не отправлен: "+(run.sentMsg||"нет ответа от таблицы")+". Проверьте развертывание Apps Script." : "") : null,
+    TEAM_URL && run.sent==="err" ? el("div",{class:"row"},el("button",{class:"btn",type:"button",onclick:sendResult},"Отправить еще раз")) : null,
     el("div",{class:"row"},
       el("button",{class:"btn primary",type:"button",onclick:()=>{run=null;startRun();}},"Еще раунд"),
       el("button",{class:"btn",type:"button",onclick:()=>{run=null;render();}},"К настройкам")));
@@ -633,14 +638,19 @@ function renderStats(){
 }
 
 /* ---------- таблица команды ---------- */
-function sendResult(){
+async function sendResult(){
   const name = (P.name||"").trim();
   if(!TEAM_URL || !name || !run) return;
-  const top = trapCount(run.answers)[0];
+  const r = run, top = trapCount(r.answers)[0];
+  r.sent = "pending"; if(tab==="round") render();
   try{
-    fetch(TEAM_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({name,score:run.score,n:run.list.length,pool:cfg.pool,streak:run.maxStreak,trap:top?top[0]:""})}).catch(()=>{});
-  }catch(e){}
+    const res = await fetch(TEAM_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({name,score:r.score,n:r.list.length,pool:cfg.pool,streak:r.maxStreak,trap:top?top[0]:""})});
+    const txt = (await res.text()).trim();
+    r.sent = txt==="ok" ? "ok" : "err";
+    r.sentMsg = txt==="ok" ? "" : txt.replace(/<[^>]+>/g," ").replace(/\s+/g," ").slice(0,160);
+  }catch(e){ r.sent = "err"; r.sentMsg = String(e && e.message || e); }
+  if(r===run && tab==="round" && run.done) render();
 }
 let team = {rows:null,err:"",loading:false};
 async function loadTeam(){
