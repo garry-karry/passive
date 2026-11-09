@@ -1073,7 +1073,7 @@ const LETTERS = ["A","B","C","D"];
 
 /* ---------- состояние ---------- */
 let tab = "round";
-let cfg = {pool:"all", timed:true};
+let cfg = {pool:"all", timed:true, size:12};
 let run = null;   // {list, i, score, streak, answers, picked, t0, left, timer, done}
 let freeId = "s1";
 const main = $("#main");
@@ -1126,6 +1126,9 @@ function renderStart(){
         el("div",{class:"seg",role:"group","aria-label":"Набор ситуаций"},
           poolBtn("all","Все ("+poolFor("all").length+")"),poolBtn("warm","Разминка ("+poolFor("warm").length+")"),poolBtn("hard","Жесткие ("+poolFor("hard").length+")"),
           weak? poolBtn("weak","Мои слабые ("+weak+")") : null)),
+      el("div",{class:"row"},el("span",{class:"note"},"Ситуаций в раунде:"),
+        el("div",{class:"seg",role:"group","aria-label":"Длина раунда"},
+          [8,12,16,24].map(n=>el("button",{type:"button","aria-pressed":cfg.size===n?"true":"false",onclick:()=>{cfg.size=n;render();}},String(n))))),
       TEAM_URL ? el("div",{class:"row"},el("label",{for:"nm"},"Имя для таблицы команды"),el("input",{type:"text",id:"nm",maxlength:"40",placeholder:"Например, Мария Л.",value:P.name||"",oninput:e=>{P.name=e.target.value;save();const g=$("#go");if(g)g.disabled=!(P.name||"").trim();const h=$("#nm-hint");if(h)h.hidden=!!(P.name||"").trim();}})) : null,
       TEAM_URL ? el("p",{class:"note",id:"nm-hint",hidden:!!(P.name||"").trim()},"Введите имя, чтобы начать: оно нужно для общей таблицы команды.") : null,
       el("div",{class:"row spread"},
@@ -1141,7 +1144,7 @@ function renderStart(){
 function startRun(){
   if(TEAM_URL && !(P.name||"").trim()){ const n=$("#nm"); if(n) n.focus(); return; }
   let pool = poolFor(cfg.pool); if(!pool.length) pool = S;
-  const list = shuffle(pool).slice(0,8).sort((a,b)=>a.lvl-b.lvl);
+  const list = shuffle(pool).slice(0,cfg.size).sort((a,b)=>a.lvl-b.lvl);
   run = {list,i:0,score:0,streak:0,maxStreak:0,answers:[],picked:null,left:45,timer:null,done:false,tAsk:Date.now(),times:[]};
   render();
 }
