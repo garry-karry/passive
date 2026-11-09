@@ -1083,6 +1083,7 @@ function setTab(t){
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t ? "true":"false"));
   stopTimer();
   render();
+  if(t==="free") loadFeedback();
   try{ history.replaceState(null,"","#"+t); }catch(e){}
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
@@ -1332,6 +1333,41 @@ async function sendAnswer(){
   if(tab==="free") render();
 }
 
+/* ---------- комментарии тимлида ---------- */
+let fb = {rows:null,loading:false,err:"",fresh:new Set()};
+const fbKey = r=>String(r.t)+"|"+String(r.id);
+function fbUnseen(){ const seen = new Set(P.seenFb||[]); return (fb.rows||[]).filter(r=>!seen.has(fbKey(r))); }
+function updateBadge(){
+  const b = document.getElementById("tab-free"); if(!b) return;
+  const n = fbUnseen().length;
+  b.textContent = n ? "Свой ответ · "+n+" нов." : "Свой ответ";
+}
+async function loadFeedback(){
+  const name = (P.name||"").trim();
+  if(!TEAM_URL || !name) return;
+  fb.loading = true; if(tab==="free") render();
+  try{
+    const r = await fetch(TEAM_URL+"?action=feedback&name="+encodeURIComponent(name),{cache:"no-store"});
+    const d = await r.json();
+    fb.rows = Array.isArray(d) ? d : []; fb.err = "";
+  }catch(e){ fb.err = "Не получилось загрузить комментарии."; }
+  fb.loading = false; updateBadge(); if(tab==="free") render();
+}
+function feedbackCard(){
+  if(!TEAM_URL || !(P.name||"").trim()) return null;
+  const rows = fb.rows || [];
+  const unseen = new Set(fbUnseen().map(fbKey));
+  if(unseen.size){ fb.fresh = new Set([...fb.fresh,...unseen]); P.seenFb = Array.from(new Set([...(P.seenFb||[]),...unseen])).slice(-300); save(); setTimeout(updateBadge,0); }
+  if(!rows.length && !fb.loading && !fb.err) return el("section",{class:"card"},el("h2",{style:"margin:0"},"Комментарии к вашим ответам"),el("p",{class:"note"},"Пока комментариев нет. Они появятся здесь, когда разберут ваш отправленный ответ."));
+  return el("section",{class:"card"},
+    el("div",{class:"row spread"},el("h2",{style:"margin:0"},"Комментарии к вашим ответам"),el("button",{class:"btn",type:"button",onclick:loadFeedback,disabled:fb.loading},fb.loading?"Загрузка…":"Обновить")),
+    fb.err ? el("p",{class:"note"},fb.err) : null,
+    el("ul",{class:"miss"},rows.slice().reverse().map(r=>el("li",{style:"flex-direction:column;align-items:stretch"},
+      el("div",{class:"row"},fb.fresh.has(fbKey(r)) ? el("span",{class:"pill lvl"},"Новый") : null,el("span",{class:"mono"},String(r.situation||""))),
+      el("p",{class:"note"},"Ваш ответ: «"+String(r.text||"").slice(0,300)+"»"),
+      el("div",{class:"box key"},el("h3",{},"Комментарий"),el("p",{},String(r.comment||"")))))));
+}
+
 function renderFree(){
   const s = BYID[freeId];
   const sel = el("select",{id:"free-sel","aria-label":"Ситуация",onchange:e=>{freeId=e.target.value;freeState=freshFree();render();}},
@@ -1342,6 +1378,7 @@ function renderFree(){
   const sentNote = freeState.sent==="pending" ? "Отправляю…" : freeState.sent==="ok" ? "Ответ отправлен на разбор." :
     freeState.sent==="err" ? "Не отправлено: "+(freeState.sentMsg||"нет ответа от таблицы")+"." : "";
   main.append(
+    feedbackCard(),
     el("section",{class:"card"},
       el("h2",{},"Свой ответ"),
       el("p",{class:"lead"},"Выберите ситуацию и напишите ответ так, как отправили бы его. Потом нажмите «Проверить себя»: страница покажет быстрые подсказки по тексту, эталон и чек-лист."),
@@ -1473,6 +1510,7 @@ document.addEventListener("keydown",e=>{
 /* старт */
 const h = (location.hash||"").slice(1);
 if(TEAM_URL) document.getElementById("tab-team").hidden=false;
+if(TEAM_URL && (P.name||"").trim()) loadFeedback();
 if(["round","free","stats"].concat(TEAM_URL?["team"]:[]).includes(h)) setTab(h); else render();
 </script>
 

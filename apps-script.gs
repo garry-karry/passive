@@ -52,9 +52,24 @@ function doPost(e) {
   }
 }
 
-function doGet() {
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.action === "feedback") {
+    // Комментарии только для одного имени и только те, где комментарий заполнен.
+    const name = String(p.name || "").trim().toLowerCase();
+    if (!name) return json_([]);
+    const rows = answers_().getDataRange().getValues().slice(1)
+      .filter(r => String(r[1]).trim().toLowerCase() === name && String(r[7]).trim() !== "")
+      .slice(-50)
+      .map(r => ({ t: r[0], id: r[2], situation: r[3], text: r[4], comment: r[7] }));
+    return json_(rows);
+  }
   const rows = sheet_().getDataRange().getValues().slice(1).slice(-1000).map(r => ({
     t: r[0], name: r[1], score: r[2], n: r[3], pool: r[4], streak: r[5], trap: r[6]
   }));
-  return ContentService.createTextOutput(JSON.stringify(rows)).setMimeType(ContentService.MimeType.JSON);
+  return json_(rows);
+}
+
+function json_(data) {
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
