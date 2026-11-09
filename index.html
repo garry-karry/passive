@@ -1126,7 +1126,7 @@ function renderStart(){
       el("div",{class:"row"},
         el("div",{class:"seg",role:"group","aria-label":"Набор ситуаций"},
           poolBtn("all","Все ("+poolFor("all").length+")"),poolBtn("warm","Разминка ("+poolFor("warm").length+")"),poolBtn("hard","Жесткие ("+poolFor("hard").length+")"),
-          weak? poolBtn("weak","Повторение ("+weak+")") : null)),
+          weak? poolBtn("weak","Работа над ошибками ("+weak+")") : null)),
       el("div",{class:"row"},el("span",{class:"note"},"Ситуаций в раунде:"),
         el("div",{class:"seg",role:"group","aria-label":"Длина раунда"},
           [8,12,16,24].map(n=>el("button",{type:"button","aria-pressed":cfg.size===n?"true":"false",onclick:()=>{cfg.size=n;render();}},String(n))))),
