@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Тренажёр колкостей</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+/* Layout: one narrow reading column, like a tracker thread. Message on top, answers below, verdict inline.
+   Color: violet-tinted neutrals, brand violet accent, teal-green for right, brick for traps.
+   Type: Unbounded for the name only, Onest for text, JetBrains Mono for tags and the clock. */
+:root{
+  --bg:#F3F2F7; --surface:#FFFFFF; --ink:#1D1630; --muted:#675F7D; --line:#DCD7E8;
+  --accent:#5B2A86; --accent-ink:#FFFFFF; --accent-soft:#ECE3F6;
+  --ok:#126C53; --ok-soft:#DCF2E8; --bad:#A8231B; --bad-soft:#FBE4E1; --warn:#8A5200; --warn-soft:#FBEFD8;
+  --f-display:"Unbounded","Onest",system-ui,sans-serif; --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15111F; --surface:#1F1A2D; --ink:#F0ECF7; --muted:#A79FBD; --line:#352C4A;
+    --accent:#B98EEA; --accent-ink:#1B1030; --accent-soft:#2D2243;
+    --ok:#5FD3A8; --ok-soft:#143328; --bad:#FF9188; --bad-soft:#3E1C1A; --warn:#F0B35B; --warn-soft:#3A2B10; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15111F; --surface:#1F1A2D; --ink:#F0ECF7; --muted:#A79FBD; --line:#352C4A;
+  --accent:#B98EEA; --accent-ink:#1B1030; --accent-soft:#2D2243;
+  --ok:#5FD3A8; --ok-soft:#143328; --bad:#FF9188; --bad-soft:#3E1C1A; --warn:#F0B35B; --warn-soft:#3A2B10; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 56px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+button,textarea,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+.mono{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(24px,5.5vw,34px);line-height:1.15;margin:4px 0 8px;text-wrap:balance}
+h2{font-size:18px;margin:0 0 10px;text-wrap:balance}
+p{margin:0}
+.lead{color:var(--muted);max-width:60ch}
+.top{display:flex;flex-direction:column;gap:6px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font-weight:600;color:var(--muted);margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 16px;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:9px 14px;font-weight:500;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}
+label.check{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.step{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.step b{display:block;font-size:15px}
+.step span{font-size:13px;color:var(--muted)}
+.rules{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.rules li::marker{color:var(--accent)}
+/* message */
+.msg-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ava{width:38px;height:38px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-mono);font-weight:500;font-size:13px;flex:none}
+.who{font-weight:700}
+.pill{font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--muted);white-space:nowrap}
+.pill.lvl{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.bubble{background:var(--bg);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:16px 18px;font-size:19px;line-height:1.45;overflow-wrap:anywhere}
+.bubble.silent{color:var(--muted);font-style:italic;letter-spacing:.2em;text-align:center}
+.ctx{color:var(--muted);font-size:14px}
+/* timer */
+.clock{height:6px;background:var(--line);border-radius:6px;overflow:hidden}
+.clock i{display:block;height:100%;background:var(--accent);width:100%;transform-origin:left}
+.clock.low i{background:var(--bad)}
+.hud{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+/* options */
+.opts{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.opt{display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+button.opt:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.opt .line{display:flex;gap:12px;align-items:flex-start}
+.opt .k{font-family:var(--f-mono);font-weight:500;color:var(--accent);flex:none;border:1px solid var(--line);border-radius:6px;width:26px;height:26px;display:grid;place-items:center;font-size:13px}
+.opt .t{overflow-wrap:anywhere;flex:1;min-width:0}
+.opt .why{font-size:14px;color:var(--muted);padding-left:38px}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.right .k{background:var(--ok);color:var(--surface);border-color:var(--ok)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong .k{background:var(--bad);color:var(--surface);border-color:var(--bad)}
+.opt.dim{opacity:.85}
+.trap{display:inline-block;font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--bad);border:1px solid var(--bad);border-radius:999px;padding:2px 8px;margin-right:8px}
+.opt.right .why{color:var(--ink)}
+.box{border-radius:12px;padding:14px 16px;background:var(--accent-soft)}
+.box.key{background:var(--ok-soft)}
+.box h3{margin:0 0 4px;font-size:12px;font-family:var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.box p{overflow-wrap:anywhere}
+.ref{font-style:italic}
+/* results */
+.big{font-family:var(--f-display);font-size:clamp(34px,9vw,56px);font-weight:600;line-height:1}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar{display:grid;grid-template-columns:minmax(0,200px) 1fr 36px;gap:10px;align-items:center;font-size:14px}
+.bar .nm{overflow-wrap:anywhere}
+.bar .tr{height:10px;border-radius:10px;background:var(--line);overflow:hidden}
+.bar .tr i{display:block;height:100%;background:var(--bad)}
+.bar .tr.g i{background:var(--ok)}
+.bar .n{font-family:var(--f-mono);text-align:right}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-family:var(--f-display);font-size:24px;font-weight:500}
+.stat span{font-size:13px;color:var(--muted)}
+.miss{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.miss li{display:flex;gap:10px;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;flex-wrap:wrap}
+.miss q{overflow-wrap:anywhere;flex:1;min-width:200px;quotes:"«" "»"}
+textarea{width:100%;min-height:140px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 14px;resize:vertical}
+select{width:100%;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);padding:10px 12px}
+ul.tight{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.crit{display:flex;flex-direction:column;gap:8px}
+.score{font-family:var(--f-display);font-size:30px;font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+main{display:flex;flex-direction:column;gap:16px;min-width:0}
+input[type=text]{border:1.5px solid var(--line);border-radius:10px;background:var(--surface);padding:9px 12px;min-width:0;flex:1;max-width:320px}
+.tblwrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.tbl th{background:var(--accent);color:var(--accent-ink);font-weight:600;white-space:nowrap}
+.tbl td.n{font-family:var(--f-mono);text-align:right;white-space:nowrap}
+.tbl tr.me td{background:var(--accent-soft);font-weight:600}
+[hidden]{display:none!important}
+@media (max-width:560px){
+  .steps{grid-template-columns:1fr 1fr}
+  .bar{grid-template-columns:1fr 36px}
+  .bar .tr{grid-column:1/-1;order:3}
+  .card{padding:16px}
+  .opt .why{padding-left:0}
+}
+@media (prefers-reduced-motion:no-preference){.clock i{transition:transform .25s linear}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="row"><span class="mono">Evenbeter · Customer Success</span></div>
+    <h1>Тренажёр колкостей</h1>
+    <p class="lead">Прилетела колкость, а ответить надо сейчас. Здесь можно отработать реакцию по модели воркшопа: пауза, факт, интерес, шаг. Выбирайте ответ на время или пишите свой.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Режимы">
+    <button class="tab" role="tab" id="tab-round" aria-selected="true" data-tab="round">Раунд</button>
+    <button class="tab" role="tab" id="tab-free" aria-selected="false" data-tab="free">Свой ответ</button>
+    <button class="tab" role="tab" id="tab-stats" aria-selected="false" data-tab="stats">Итоги</button>
+    <button class="tab" role="tab" id="tab-team" aria-selected="false" data-tab="team" hidden>Команда</button>
+  </nav>
+
+  <main id="main"></main>
+  <p class="note">Ситуации взяты из реальной переписки команды и обезличены. Личный прогресс хранится в этом браузере, в общую таблицу попадают только результаты раундов с вашим именем.</p>
+</div>
+
+<script>
+"use strict";
+/* ---------- настройка ----------
+   Адрес общей таблицы команды (Google Apps Script, см. README). Пока пусто, вкладка «Команда» скрыта. */
+const TEAM_URL = "";
+
+/* ---------- данные ---------- */
+const RULES = [
+  "Все рабочие вопросы, ответы и договоренности с техдепом - только в комментариях YouTrack, не в личке.",
+  "Деньги, счета, скидки, рассрочки, ресурс на проекте и условия договора - только через БД.",
+  "Срок клиенту называем только после оценки техдепа.",
+  "Других клиентов не упоминаем никогда.",
+  "Колкость клиента в задачу и коллегам не переносим: передаем факты, тон остается у нас.",
+  "Повторилось 3 раза или перешло на личности - фиксируем и идем к тимлиду."
+];
+const STEPS = [["Пауза","не отвечать на эмоцию сразу"],["Факт","что сказано и сделано, отдельно от тона"],["Интерес","что человеку на самом деле нужно"],["Шаг","ответ по сути, срок, итог в YouTrack"]];
+const GEN_CRIT = ["Ответ на факт, а не на тон","Нет оправданий и контратаки","Есть следующий шаг: срок или владелец","Тон не передан дальше, чужие клиенты не упомянуты","Правила: YouTrack, деньги и ресурс через БД, срок после оценки техдепа"];
+
+const S = [
+{id:"s1",lvl:1,role:"ТД",who:"Техдеп",ch:"Комментарий в YouTrack",type:"Упрек под видом совета",
+ text:"Если правильно заводить задачи, то они не будут висеть по нескольку дней.",
+ ctx:"Задача простояла три дня. В ней действительно не хватало данных.",
+ opts:[
+  {t:"Спасибо. Какого пункта не хватает? Дополню сегодня до 16:00.",ok:1,why:"Берем полезное из упрека (в задаче чего-то нет), отвечаем по сути и называем срок. Тон не обсуждаем."},
+  {t:"Задача заведена по шаблону, мы всегда так заводим.",trap:"Оправдание",why:"Спор вместо вопроса. Что именно не хватало, так и осталось неизвестным."},
+  {t:"Хорошо, учтем.",trap:"Молчаливое согласие",why:"Ничего не выяснили. Через неделю история повторится, и опять без ясности."},
+  {t:"Написать разработчику в личку: «Что тебе не хватает?»",trap:"Личка",why:"Нарушает правило: вопросы и ответы с техдепом идут только через YouTrack."}],
+ key:"Находим факт за советом и отвечаем на него со сроком.",
+ ref:"Спасибо. Подскажите, какого пункта не хватает в задаче? Дополню сегодня до 16:00 и проверю шаблон.",
+ crit:["Спросили, какого пункта не хватает","Назвали срок: сегодня до 16:00","Ответ в комментарии к задаче"]},
+
+{id:"s2",lvl:1,role:"ТД",who:"Техдеп",ch:"Комментарий в YouTrack",type:"Полезный факт плюс упрек",
+ text:"clientId всегда создаются парами - надо читать, что пишут в задачах.",
+ ctx:"Это новое знание для вас. Тон колкий.",
+ opts:[
+  {t:"Спасибо, поняла. Где это описано? Добавлю в шаблон.",ok:1,why:"Забираем факт, тон не комментируем, предлагаем закрепить знание в шаблоне."},
+  {t:"Мы читали, но в задаче этого не было.",trap:"Спор «кто что читал»",why:"Выясняем, кто прав, вместо того чтобы забрать факт. Отношения портятся, польза теряется."},
+  {t:"Ответить только по основной задаче, про clientId не писать.",trap:"Пропуск факта из-за обиды",why:"Полезное знание потеряно: в следующий раз ошибка повторится."},
+  {t:"Переслать комментарий коллегам: «Смотрите, как он с нами».",trap:"Пересказ тона",why:"Тон по цепочке не передаем: передаем только факты."}],
+ key:"Берем факт, тон оставляем без внимания, знание кладем в шаблон.",
+ ref:"Спасибо, поняла. Где это описано? Добавлю в шаблон задачи.",
+ crit:["Поблагодарили и взяли факт","Спросили, где описано, или предложили добавить в шаблон","Не спорили о том, кто что читал"]},
+
+{id:"s3",lvl:2,role:"КЛ",who:"Клиент",ch:"Чат",type:"Сарказм про профессионализм",
+ text:"пипец просто у вас профессионалы тестируют. всё через одно место. пообщайтесь с ними. может стоит нормального специалиста привлечь",
+ ctx:"Клиент нашел ошибку после релиза. В тестировании действительно что-то пропустили.",
+ opts:[
+  {t:"Расскажите, что именно пропущено? Зафиксирую по каждому случаю в задаче, чтобы разобрать с командой.",ok:1,why:"Просим конкретику и превращаем эмоцию в задачи с фактами."},
+  {t:"Согласна, тестирование у нас слабое.",trap:"Поддакивание",why:"Подтверждаем оценку, которую никто не проверял, и ослабляем свою команду."},
+  {t:"Наши тестировщики профессионалы, у них большой опыт.",trap:"Защита общими словами",why:"Клиент приводит факты, а мы отвечаем лозунгом. Звучит как отмахивание."},
+  {t:"Переслать команде весь текст: «Послушайте, что он о вас пишет».",trap:"Пересказ тона",why:"Правило «CS посередине»: колкость не передаем. Коллегам идут только факты."}],
+ key:"Просим конкретику, фиксируем факты, тон по цепочке не передаем.",
+ ref:"Расскажите, пожалуйста, что именно было пропущено? Зафиксирую каждый случай в задаче и разберу с командой.",
+ crit:["Попросили конкретные примеры","Пообещали зафиксировать в задаче","Не защищали и не поддакивали общими словами"]},
+
+{id:"s4",lvl:2,role:"КЛ",who:"Клиент",ch:"Email",type:"Справедливый упрек",
+ text:"Вам понадобилась неделя, что бы задать еще вопрос, вы издеваетесь?",
+ ctx:"Вопрос действительно можно было задать в первый день.",
+ opts:[
+  {t:"Вы правы, вопрос нужно было задать раньше. Осталось уточнить: 1) … 2) … Ответ до [дата], тогда срок - [дата].",ok:1,why:"Одно признание, список вопросов целиком и срок. Клиент видит конец очереди."},
+  {t:"У нас была большая загрузка, поэтому так вышло.",trap:"Оправдание",why:"Клиенту не нужны причины. Ему нужны вопросы и дата."},
+  {t:"Мы не издеваемся, мы спросили сразу, как получили задачу.",trap:"Контратака",why:"Спорим с риторическим вопросом. Эскалируем конфликт вместо работы."},
+  {t:"Извините-извините, больше не повторится!",trap:"Извинение без шага",why:"Эмоциональное извинение без списка вопросов и срока ничего не двигает."}],
+ key:"Признаем одной фразой, даем список оставшихся вопросов и срок. Все вопросы собираем в первый день.",
+ ref:"Вы правы, вопрос нужно было задать раньше. Осталось уточнить: [вопросы одним списком]. Нужен ответ до [дата], тогда срок - [дата].",
+ crit:["Признали одной фразой без оправданий","Дали полный список оставшихся вопросов","Назвали дату ответа и зависящий от нее срок"]},
+
+{id:"s5",lvl:2,role:"КЛ",who:"Клиент",ch:"Чат",type:"Отказ с сарказмом",
+ text:"мы работаем на продакшен сервере и на продакшен нам не нужен тест. делайте такое с другими вашими клиентами.",
+ ctx:"Ненормативная лексика в оригинале убрана. Клиент отказывается менять что-либо на проде.",
+ opts:[
+  {t:"Поняли ограничение. Расскажите условия (окна, согласования, откат) - предложим вариант, который в них укладывается, например проверку на тестовой среде.",ok:1,why:"Принимаем ограничение и спрашиваем условия. Срок назовем после оценки техдепа."},
+  {t:"Другие клиенты делают это на проде без проблем.",trap:"Чужие клиенты",why:"Других клиентов не упоминаем никогда: это нарушает доверие и конфиденциальность."},
+  {t:"Тогда срок сдвинется минимум на месяц.",trap:"Срок без техдепа",why:"Называем срок раньше оценки техдепа и пугаем им клиента."},
+  {t:"Это обязательное требование, без него мы ничего не делаем.",trap:"Настаивание",why:"Давим, не узнав условий клиента. Диалог закрывается."}],
+ key:"Принимаем ограничение, узнаем условия, предлагаем тестовую среду. Срок - после оценки техдепа.",
+ ref:"Поняли, продакшен трогать не будем. Расскажите, пожалуйста, ваши условия: окна, согласования, откат. Предложим вариант, который в них укладывается, например проверку на тестовой среде.",
+ crit:["Приняли ограничение клиента","Спросили условия (окна, согласования, откат)","Не назвали срок и не сослались на других клиентов"]},
+
+{id:"s6",lvl:2,role:"КЛ",who:"Клиент или коллега",ch:"Задача в YouTrack",type:"Молчание на прямые вопросы",silent:1,
+ text:"- тишина, три дня -",
+ ctx:"Вы задали прямой вопрос в задаче. Ответа нет. Срок по задаче поджимает.",
+ opts:[
+  {t:"В той же задаче: «Нужен ответ по [X] до [дата], иначе срок сдвигается». Через сутки напомнить там же, затем сообщить тимлиду.",ok:1,why:"Один вопрос, один канал, дедлайн и понятная лестница: напоминание, потом тимлид."},
+  {t:"Написать в почту, мессенджер и позвонить в один день.",trap:"Все каналы сразу",why:"Выглядит как давление, а ответ все равно придет в одном месте. В YouTrack ничего не зафиксировано."},
+  {t:"Написать: «Вы меня игнорируете?»",trap:"Обвинение",why:"Обвиняем вместо того, чтобы дать дедлайн и последствия."},
+  {t:"Ждать молча до самого срока.",trap:"Молчаливое ожидание",why:"Срок сорвется, а у нас не будет ни напоминаний, ни фактов для тимлида."}],
+ key:"Один вопрос с дедлайном, напоминание через сутки в той же задаче, затем тимлид. Эпизод - в журнал.",
+ ref:"Нужен ответ по [вопрос] до [дата], иначе срок по задаче сдвинется. Напишите, пожалуйста, здесь.",
+ crit:["Вопрос один и с дедлайном","Написано в той же задаче","Названо последствие и понятна лестница эскалации"]},
+
+{id:"s7",lvl:3,role:"КЛ",who:"Клиент",ch:"Чат",type:"Открытая агрессия",
+ text:"R u f***ing idiot?",
+ ctx:"Это не пассивная агрессия. Оскорбление прямое. Нецензурное слово замаскировано.",
+ opts:[
+  {t:"Пауза, затем: «I want to solve this for you. Let’s keep it respectful so I can focus on [issue].»",ok:1,why:"Одна спокойная граница и возврат к сути. Если повторится - фиксируем и идем к тимлиду."},
+  {t:"«Don’t talk to me like that, or I’ll stop working with you.»",trap:"Ответ в том же тоне",why:"Отвечаем угрозой на оскорбление. Конфликт растет."},
+  {t:"Сделать вид, что ничего не было, и ответить по сути.",trap:"Терпение без фиксации",why:"Оскорбление нигде не зафиксировано. Если повторится, не будет истории."},
+  {t:"Скопировать письмо в тред разработчикам целиком.",trap:"Перенос тона",why:"Отдаем колкость коллегам. Им нужны факты задачи, а не оскорбления."}],
+ key:"Пауза, одна граница, возврат к сути. Повторилось - фиксируем и к тимлиду.",
+ ref:"I want to solve this for you. Let’s keep it respectful so I can focus on [issue].",
+ crit:["Одна спокойная граница","Возврат к сути вопроса","Без ответной агрессии, угроз и оправданий"]},
+
+{id:"s8",lvl:3,role:"КЛ",who:"Клиент",ch:"Чат на английском",type:"Страх сорванного даунтайма",
+ text:"We are 11 days from the downtime... so does that mean you are confident on everything?",
+ ctx:"Клиент не получил допуск к тесту и не видит статус. Решение о переносе принимают техдеп и тимлид.",
+ opts:[
+  {t:"Fair question. Status: [..]. Test access: [date, owner]. Decision on moving the downtime: [owner] by [date]. Can we have a 15-minute call tomorrow?",ok:1,why:"Отвечаем на три настоящих вопроса (статус, допуск, перенос), у каждого дата и ответственный. Плюс короткий созвон."},
+  {t:"Yes, we are confident, everything is on track.",trap:"Обещание без техдепа",why:"Подтверждаем «все готово», не проверив у техдепа. Если это не так, потеряем доверие."},
+  {t:"The delay is on the integration side, not on ours.",trap:"Перекладывание вины",why:"Ищем виноватого вместо того, чтобы показать статус и следующий шаг."},
+  {t:"We understand your concern and will do our best.",trap:"Общие слова без дат",why:"Нет ни статуса, ни даты, ни владельца. Тревога клиента остается."}],
+ key:"Три вопроса: где мы, когда допуск, переносим ли. По каждому дата и ответственный. Решение о переносе - техдеп и тимлид.",
+ ref:"Fair question. Here is where we are: [status]. Test access: [date, owner]. The decision on moving the downtime will be made by [owner] by [date]. Could we have a 15-minute call tomorrow?",
+ crit:["Ответили на статус, допуск и перенос","У каждого пункта дата и ответственный","Не подтвердили «все готово» без техдепа"]},
+
+{id:"s9",lvl:3,role:"КЛ",who:"Клиент",ch:"Email на английском",type:"Просьба о ресурсе",
+ text:"How many more proofs are needed so you finally recognize we need more people on our project?",
+ ctx:"Состав команды на проекте - это условия и деньги, значит, вопрос БД.",
+ opts:[
+  {t:"Thank you for being direct. Which tasks and deadlines suffer most? I’ll pass your request with all the facts to our management team and come back by [date].",ok:1,why:"Признаем запрос, собираем факты и передаем БД, клиенту называем дату ответа."},
+  {t:"Sure, we’ll add two more people to your project.",trap:"Обещание ресурса",why:"Решение о людях и деньгах принимает не CS. Обещать нельзя."},
+  {t:"Unfortunately, we can’t add more people at this time.",trap:"Отказ самим",why:"Отказываем в запросе, который не наш. Это тоже вопрос БД."},
+  {t:"What proofs do you need? We have sent you plenty.",trap:"Спор о «proofs»",why:"Спорим о формулировке, хотя за ней усталость и реальная просьба."}],
+ key:"Ресурс на проекте - это условия. Факты и запрос передаем БД дословно, клиенту называем дату ответа.",
+ ref:"Thank you for being direct. Could you tell me which tasks and deadlines are affected the most? I will pass your request with the details to our management team and come back to you by [date].",
+ crit:["Признали запрос и узнали, что страдает","Пообещали передать менеджменту (БД) с фактами","Не обещали людей и не отказывали"]},
+
+{id:"s10",lvl:3,role:"КЛ",who:"Клиент",ch:"Чат",type:"Накопленная обида, риск ухода",
+ text:"Ну вот именно поэтому мы и не идём дальше. У вас то отпуск, то ещё что то. А я уже три года жду.",
+ ctx:"Вы только что написали, что баг не исправлен, потому что исполнитель в отпуске.",
+ opts:[
+  {t:"Вы правы, это долго. Ответственный - [имя], срок - [дата], на время отпуска заменит [имя]. Сообщаю руководству и менеджеру по развитию.",ok:1,why:"Клиенту нужны человек и дата, а не причина. Плюс сигнал риска наверх: тимлиду и БД."},
+  {t:"Отпуск - законное право сотрудника, мы ничего не можем сделать.",trap:"Объяснение отпуском",why:"Правда, но клиент слышит оправдание. Причину ему объяснять не нужно."},
+  {t:"Постараемся исправить на этой неделе.",trap:"Срок без техдепа",why:"Обещание без оценки техдепа. Сорвем - потеряем остатки доверия."},
+  {t:"Давайте не будем решать сейчас, обсудим на следующем созвоне.",trap:"Тянуть время",why:"Клиент уже сказал «не идем дальше». Откладывание воспринимается как согласие с его оценкой."}],
+ key:"Нужны человек и дата. Фразу «не идем дальше» считаем сигналом риска и сразу сообщаем тимлиду и БД.",
+ ref:"Вы правы, это долго. Ответственный по задаче - [имя], срок - [дата], на время отпуска его заменит [имя]. Я также передаю ситуацию руководству.",
+ crit:["Признали без объяснений отпуском","Назвали ответственного, дату и замену","Передали сигнал риска руководству и БД"]},
+
+{id:"s11",lvl:2,role:"КЛ",who:"Клиент",ch:"Чат",type:"Уход от вопроса и критика продукта",
+ text:"Я ни чего не проверял. Я жду от вас ответ. Так как покер который вы сделали это 3 из 10 по конкурентам.",
+ ctx:"Вы спросили, проверил ли он тест. В ответ - критика продукта.",
+ opts:[
+  {t:"Спасибо за откровенность. Какого ответа вы ждете? И что именно у конкурентов лучше (2-3 пункта)? Оформлю задачей в YouTrack и вернемся к тесту с новой датой.",ok:1,why:"Не спорим, уточняем ожидание и превращаем критику в конкретные пункты для продукта."},
+  {t:"Наш покер хороший, у него много сильных сторон.",trap:"Защита продукта",why:"Оценка «3 из 10» - тоже факт. Защита не добавляет ни одного пункта для работы."},
+  {t:"Но мы же договаривались, что вы проверите до пятницы.",trap:"Упрек в ответ",why:"Выигрываем спор о договоренности и проигрываем разговор."},
+  {t:"Тогда дальше без теста мы ничего не сможем сделать.",trap:"Давление в ответ",why:"Отвечаем ультиматумом на критику. Клиент остается без ответа на свой вопрос."}],
+ key:"Не спорим: уточняем ожидание и пункты, обратная связь - задачей в YouTrack, затем возвращаемся к тесту с новой датой.",
+ ref:"Спасибо за откровенность. Какой ответ вы ждете? И что именно у конкурентов лучше - хотя бы 2-3 пункта? Оформлю это задачей и вернусь с новой датой по тесту.",
+ crit:["Поблагодарили, не защищали продукт","Спросили, какого ответа ждут и что лучше у конкурентов","Обратная связь оформлена задачей, названа новая дата теста"]},
+
+{id:"s12",lvl:2,role:"СО",who:"Смежный отдел (IS)",ch:"Комментарий в YouTrack",type:"Граница ответственности",
+ text:"Интеграцией занимается IS. Занимайтесь пожалуйста своими задачами.",
+ ctx:"Колкая форма, но в сообщении полезный факт: интеграция принадлежит IS.",
+ opts:[
+  {t:"Поняла. Кто там владелец? Добавлю его в задачу и передам контекст.",ok:1,why:"Берем факт, находим владельца, передаем контекст. Если владельца нет - вопрос тимлидам."},
+  {t:"Эту интеграцию на нас повесили вы, не уходите от ответа.",trap:"Спор о границах",why:"Выясняем, чья вина. Задача так и остается без владельца."},
+  {t:"Хорошо, значит делаю интеграцию сама.",trap:"Молча взять чужую часть",why:"Берем чужую ответственность и теряем ресурс на своей."},
+  {t:"Сразу написать руководителю IS и тимлидам: «IS отказывается работать».",trap:"Эскалация сразу",why:"Мы еще не узнали, кто владелец. Сначала спрашиваем и добавляем в задачу."}],
+ key:"Берем факт, спрашиваем владельца, передаем контекст. Нет владельца - тимлидам.",
+ ref:"Поняла. Подскажите, кто у вас владелец интеграции? Добавлю его в задачу и передам весь контекст.",
+ crit:["Приняли факт, что интеграция у IS","Спросили владельца и пообещали передать контекст","Не спорили о границах и не эскалировали сразу"]},
+
+{id:"s13",lvl:2,role:"БД",who:"БД",ch:"Общий чат",type:"Обещание клиенту и давление на процесс",
+ text:"Я клиенту сказал, что сделаем до пятницы. Нужно быстренько, без задачи, просто сделайте.",
+ ctx:"Срок назван клиенту без оценки техдепа.",
+ opts:[
+  {t:"Поняла. Чтобы уложиться, нужна задача с приоритетом по шкале. Оценку даст техдеп, вынесу ему сегодня вместе с аргументами. Клиенту скажем вместе после оценки.",ok:1,why:"Процесс не обходим, но помогаем БД: задача, приоритет, аргументы, общий ответ клиенту."},
+  {t:"Хорошо, сделаю без задачи.",trap:"Обход процесса",why:"«Быстренько, без задачи» не бывает: потеряются история и приоритет."},
+  {t:"Вы обещали - вы и объясняйте клиенту.",trap:"Перекладывание вины",why:"Правда, но тон и позиция превращают проблему в конфликт с БД."},
+  {t:"Написать разработчику в личку и попросить сделать побыстрее.",trap:"Личка",why:"Нарушаем правило: все только через YouTrack."}],
+ key:"Процесс не обходим. Задача с приоритетом, оценка техдепа, вместе с БД клиенту: «наш клиент, наше обещание».",
+ ref:"Поняла. Чтобы уложиться, заведу задачу с приоритетом и вынесу техдепу на оценку сегодня вместе с вашими аргументами. Клиенту скажем вместе, когда будет оценка.",
+ crit:["Задача с приоритетом, не в обход процесса","Оценка идет через техдеп","Клиенту отвечаем вместе с БД"]},
+
+{id:"s14",lvl:1,role:"ТД",who:"Техдеп",ch:"Комментарий в YouTrack",type:"Раздражение «опять»",
+ text:"Опять без логов. В который раз.",
+ ctx:"В вашей задаче действительно нет логов.",
+ opts:[
+  {t:"Вижу, логов нет. Добавлю сегодня до 15:00. Предлагаю добавить пункт в шаблон, чтобы больше не терялось.",ok:1,why:"Признаем факт, называем срок и закрепляем исправление в шаблоне."},
+  {t:"В прошлый раз вы тоже просили не те логи.",trap:"Контратака",why:"Достаем старое. Спор отнимет больше времени, чем исправление."},
+  {t:"Как будто вы нам всегда успеваете отвечать.",trap:"Сарказм в ответ",why:"Отвечаем колкостью на колкость. Работа стоит."},
+  {t:"Извините, больше не повторится!",trap:"Извинение без шага",why:"Эмоциональное обещание без срока и без изменений в шаблоне. Повторится."}],
+ key:"Факт: логов нет. Срок: сегодня. Профилактика: пункт в шаблоне.",
+ ref:"Вижу, логов нет. Добавлю сегодня до 15:00 и предложу внести пункт про логи в шаблон задачи.",
+ crit:["Признали факт: логов нет","Дали срок","Предложили закрепить в шаблоне"]}
+];
+const BYID = Object.fromEntries(S.map(s=>[s.id,s]));
+const LEVELS = {1:"Уровень 1 · мягкая",2:"Уровень 2 · колкая",3:"Уровень 3 · жесткая"};
+
+/* ---------- хранение ---------- */
+const KEY = "pa-trainer-v1";
+function load(){ try{ const v = JSON.parse(localStorage.getItem(KEY)); if(v && v.runs) return v; }catch(e){} return {runs:[],per:{},traps:{},bestStreak:0}; }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(P)); }catch(e){} }
+let P = load();
+
+/* ---------- утилиты ---------- */
+const $ = (s,r=document)=>r.querySelector(s);
+const el = (tag,attrs={},...kids)=>{ const n=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==="class") n.className=v; else if(k==="html") n.innerHTML=v; else if(k.startsWith("on")) n.addEventListener(k.slice(2),v); else if(v!==false && v!=null) n.setAttribute(k,v===true?"":v); } for(const k of kids.flat()){ if(k==null||k===false) continue; n.append(k.nodeType?k:document.createTextNode(k)); } return n; };
+const shuffle = a=>{ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const plural = (n,a,b,c)=>{ const m=n%100, d=n%10; return (m>10&&m<20)?c:(d===1?a:(d>=2&&d<=4?b:c)); };
+const LETTERS = ["A","B","C","D"];
+
+/* ---------- состояние ---------- */
+let tab = "round";
+let cfg = {pool:"all", timed:true};
+let run = null;   // {list, i, score, streak, answers, picked, t0, left, timer, done}
+let freeId = "s1";
+const main = $("#main");
+
+function setTab(t){
+  tab = t;
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===t ? "true":"false"));
+  stopTimer();
+  render();
+  try{ history.replaceState(null,"","#"+t); }catch(e){}
+}
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+
+function render(){
+  main.replaceChildren();
+  if(tab==="round") run ? (run.done ? renderRunEnd() : renderQuestion()) : renderStart();
+  else if(tab==="free") renderFree();
+  else if(tab==="team") renderTeam();
+  else renderStats();
+}
+
+/* ---------- общие блоки ---------- */
+function messageCard(s){
+  return el("div",{class:"card"},
+    el("div",{class:"msg-head"},
+      el("div",{class:"ava","aria-hidden":"true"},s.role),
+      el("span",{class:"who"},s.who),
+      el("span",{class:"pill"},s.ch),
+      el("span",{class:"pill lvl"},LEVELS[s.lvl])),
+    el("p",{class:"mono",style:"margin-top:-4px"},s.type),
+    el("div",{class:"bubble"+(s.silent?" silent":"")},s.text),
+    s.ctx ? el("p",{class:"ctx"},s.ctx) : null);
+}
+function poolFor(kind){
+  if(kind==="hard") return S.filter(s=>s.lvl===3);
+  if(kind==="warm") return S.filter(s=>s.lvl<3);
+  if(kind==="weak") return S.filter(s=>{ const p=P.per[s.id]; return p && p.w>0; });
+  return S;
+}
+
+/* ---------- старт раунда ---------- */
+function renderStart(){
+  const weak = poolFor("weak").length;
+  const poolBtn = (k,label)=>el("button",{type:"button","aria-pressed":cfg.pool===k?"true":"false",onclick:()=>{cfg.pool=k;render();}},label);
+  main.append(
+    el("section",{class:"card"},
+      el("h2",{},"Раунд"),
+      el("p",{class:"lead"},"Вам показывают сообщение. Выберите ответ, потом смотрите разбор каждого варианта. Ситуации идут от мягких к жестким."),
+      el("div",{class:"row"},
+        el("div",{class:"seg",role:"group","aria-label":"Набор ситуаций"},
+          poolBtn("all","Все (14)"),poolBtn("warm","Разминка (10)"),poolBtn("hard","Жесткие (4)"),
+          weak? poolBtn("weak","Мои слабые ("+weak+")") : null)),
+      TEAM_URL ? el("div",{class:"row"},el("label",{for:"nm"},"Имя для таблицы команды"),el("input",{type:"text",id:"nm",maxlength:"40",placeholder:"Например, Мария Л.",value:P.name||"",oninput:e=>{P.name=e.target.value;save();}})) : null,
+      el("div",{class:"row spread"},
+        el("label",{class:"check"},el("input",{type:"checkbox",id:"timed",checked:cfg.timed,onchange:e=>{cfg.timed=e.target.checked;}}),"На время, 45 секунд на ответ"),
+        el("button",{class:"btn primary",id:"go",type:"button",onclick:startRun},"Начать раунд"))),
+    el("section",{class:"card"},
+      el("h2",{},"Модель ответа"),
+      el("div",{class:"steps"},STEPS.map(([a,b],i)=>el("div",{class:"step"},el("b",{},(i+1)+". "+a),el("span",{},b))))),
+    el("section",{class:"card"},
+      el("h2",{},"Красные линии"),
+      el("ul",{class:"rules"},RULES.map(r=>el("li",{},r)))));
+}
+function startRun(){
+  let pool = poolFor(cfg.pool); if(!pool.length) pool = S;
+  const list = shuffle(pool).slice(0,8).sort((a,b)=>a.lvl-b.lvl);
+  run = {list,i:0,score:0,streak:0,maxStreak:0,answers:[],picked:null,left:45,timer:null,done:false,tAsk:Date.now(),times:[]};
+  render();
+}
+
+/* ---------- вопрос ---------- */
+function renderQuestion(){
+  const s = run.list[run.i];
+  if(!run.order) run.order = {};
+  if(!run.order[s.id]) run.order[s.id] = shuffle(s.opts.map((o,i)=>i));
+  const order = run.order[s.id];
+  const answered = run.picked!==null;
+
+  const hud = el("div",{class:"hud"},
+    el("span",{class:"mono"},"Ситуация "+(run.i+1)+" из "+run.list.length),
+    el("span",{class:"mono"},"Верно: "+run.score+" · серия: "+run.streak),
+    cfg.timed ? el("span",{class:"mono",id:"clk-t"},run.left+" с") : null);
+  const clock = cfg.timed ? el("div",{class:"clock"+(run.left<=10?" low":""),id:"clk","aria-hidden":"true"},el("i",{style:"transform:scaleX("+(run.left/45)+")"})) : null;
+
+  const list = el("ul",{class:"opts",id:"opts"});
+  order.forEach((oi,pos)=>{
+    const o = s.opts[oi];
+    const isPicked = run.picked===oi;
+    let cls = "opt";
+    if(answered){ if(o.ok) cls+=" right"; else if(isPicked) cls+=" wrong"; else cls+=" dim"; }
+    const inner = [
+      el("div",{class:"line"},el("span",{class:"k"},LETTERS[pos]),el("span",{class:"t"},o.t)),
+      answered ? el("div",{class:"why"}, !o.ok ? el("span",{class:"trap"},o.trap) : null, (o.ok?"Лучший ответ. ":"")+o.why) : null];
+    const node = answered
+      ? el("div",{class:cls},inner)
+      : el("button",{type:"button",class:cls,"data-pos":pos,onclick:()=>pick(oi)},inner);
+    list.append(el("li",{},node));
+  });
+
+  main.append(el("div",{class:"card"},hud,clock),messageCard(s),
+    el("p",{class:"mono"},answered?"Разбор":"Ваш ответ? Клавиши 1-4"),list);
+
+  if(answered){
+    if(run.picked===-1) main.append(el("div",{class:"box",style:"background:var(--warn-soft)"},el("h3",{},"Время вышло"),el("p",{},"В реальности пауза тоже должна быть конечной. Ниже лучший вариант и разбор.")));
+    main.append(
+      el("div",{class:"box key"},el("h3",{},"Главное"),el("p",{},s.key)),
+      el("div",{class:"box"},el("h3",{},"Эталонный ответ"),el("p",{class:"ref"},"«"+s.ref+"»")),
+      el("div",{class:"row spread"},
+        el("button",{class:"btn",type:"button",onclick:()=>{freeId=s.id;setTab("free");}},"Написать свой ответ"),
+        el("button",{class:"btn primary",id:"next",type:"button",onclick:next},run.i+1<run.list.length?"Дальше":"Показать итог")));
+    $("#next")?.focus({preventScroll:true});
+  } else if(cfg.timed){ startTimer(); }
+}
+function startTimer(){
+  stopTimer();
+  run.timer = setInterval(()=>{
+    run.left -= 1;
+    const t = $("#clk-t"), c = $("#clk");
+    if(t) t.textContent = run.left+" с";
+    if(c){ c.firstChild.style.transform="scaleX("+Math.max(run.left,0)/45+")"; c.classList.toggle("low",run.left<=10); }
+    if(run.left<=0){ stopTimer(); pick(-1); }
+  },1000);
+}
+function stopTimer(){ if(run && run.timer){ clearInterval(run.timer); run.timer=null; } }
+
+function pick(oi){
+  if(!run || run.picked!==null) return;
+  stopTimer();
+  const s = run.list[run.i];
+  const o = oi>=0 ? s.opts[oi] : null;
+  const ok = !!(o && o.ok);
+  run.picked = oi;
+  run.times.push(45 - Math.max(run.left,0));
+  run.score += ok?1:0;
+  run.streak = ok ? run.streak+1 : 0;
+  run.maxStreak = Math.max(run.maxStreak,run.streak);
+  const trap = ok ? null : (o ? o.trap : "Не успели ответить");
+  run.answers.push({id:s.id,ok,trap});
+  const p = P.per[s.id] || (P.per[s.id]={r:0,w:0});
+  ok ? p.r++ : p.w++;
+  if(trap) P.traps[trap] = (P.traps[trap]||0)+1;
+  if(run.maxStreak>P.bestStreak) P.bestStreak = run.maxStreak;
+  save();
+  render();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function next(){
+  if(run.i+1>=run.list.length){
+    run.done = true;
+    P.runs.push({t:Date.now(),s:run.score,n:run.list.length,hard:cfg.pool==="hard"});
+    P.runs = P.runs.slice(-60);
+    save();
+    sendResult();
+  } else { run.i++; run.picked=null; run.left=45; }
+  render();
+  window.scrollTo({top:0});
+}
+
+/* ---------- конец раунда ---------- */
+function msgFor(sc,n){
+  const r = sc/n;
+  if(r===1) return "Чисто. Так и отвечаем: факт, шаг, срок.";
+  if(r>=.75) return "Крепко. Посмотрите на промахи: обычно это одна и та же ловушка.";
+  if(r>=.5) return "Половина есть. Разберите ловушки ниже и пройдите раунд еще раз.";
+  return "Это нормально: инстинкт отвечает на тон. Пройдите разбор и повторите промахи.";
+}
+function trapCount(answers){ const m={}; answers.forEach(a=>{ if(a.trap) m[a.trap]=(m[a.trap]||0)+1; }); return Object.entries(m).sort((a,b)=>b[1]-a[1]); }
+function renderRunEnd(){
+  const n = run.list.length, miss = run.answers.filter(a=>!a.ok);
+  const traps = trapCount(run.answers);
+  const avg = run.times.length ? Math.round(run.times.reduce((a,b)=>a+b,0)/run.times.length) : 0;
+  main.append(
+    el("section",{class:"card"},
+      el("p",{class:"mono"},"Итог раунда"),
+      el("div",{class:"big"},run.score+" из "+n),
+      el("p",{class:"lead"},msgFor(run.score,n)),
+      el("div",{class:"stats"},
+        el("div",{class:"stat"},el("b",{},String(run.maxStreak)),el("span",{},"лучшая серия")),
+        cfg.timed ? el("div",{class:"stat"},el("b",{},avg+" с"),el("span",{},"в среднем на ответ")) : null,
+        el("div",{class:"stat"},el("b",{},String(miss.length)),el("span",{},plural(miss.length,"промах","промаха","промахов"))))),
+    traps.length ? el("section",{class:"card"},
+      el("h2",{},"В какие ловушки попали"),
+      el("div",{class:"bars"},traps.map(([k,v])=>bar(k,v,n)))) : null,
+    miss.length ? el("section",{class:"card"},
+      el("h2",{},"Промахи: потренируйте письменно"),
+      el("ul",{class:"miss"},miss.map(a=>{ const s=BYID[a.id]; return el("li",{},el("q",{},s.text),el("button",{class:"btn",type:"button",onclick:()=>{freeId=s.id;setTab("free");}},"Ответить своими словами")); }))) : null,
+    el("div",{class:"row"},
+      el("button",{class:"btn primary",type:"button",onclick:()=>{run=null;startRun();}},"Еще раунд"),
+      el("button",{class:"btn",type:"button",onclick:()=>{run=null;render();}},"К настройкам")));
+}
+function bar(label,v,max,good){
+  return el("div",{class:"bar"},el("span",{class:"nm"},label),
+    el("span",{class:"tr"+(good?" g":"")},el("i",{style:"width:"+Math.round(100*v/Math.max(max,1))+"%"})),
+    el("span",{class:"n"},String(v)));
+}
+
+/* ---------- свой ответ ---------- */
+let freeState = {text:"",showRef:false,checks:{}};
+function renderFree(){
+  const s = BYID[freeId];
+  const sel = el("select",{id:"free-sel","aria-label":"Ситуация",onchange:e=>{freeId=e.target.value;freeState={text:"",showRef:false,checks:{}};render();}},
+    S.map(x=>el("option",{value:x.id,selected:x.id===freeId},"Ур. "+x.lvl+" · "+x.type+" · "+x.who)));
+  const ta = el("textarea",{id:"free-text",placeholder:"Напишите ответ так, как отправили бы его в задачу или чат…",oninput:e=>{freeState.text=e.target.value;}});
+  ta.value = freeState.text;
+  main.append(
+    el("section",{class:"card"},
+      el("h2",{},"Свой ответ"),
+      el("p",{class:"lead"},"Выберите ситуацию и напишите ответ так, как отправили бы его. Потом сверьтесь с эталоном и чек-листом: пауза, факт, интерес, шаг."),
+      sel),
+    messageCard(s),
+    el("section",{class:"card"},
+      ta,
+      el("div",{class:"row spread"},
+        el("span",{class:"note"},"Ответ нигде не сохраняется."),
+        el("button",{class:"btn primary",type:"button",onclick:()=>{freeState.showRef=true;render();}},"Проверить себя")),
+      ),
+    freeState.showRef ? refCard(s) : null);
+}
+function refCard(s){
+  const items = s.crit.concat(GEN_CRIT);
+  const done = items.filter((_,i)=>freeState.checks[i]).length;
+  return el("section",{class:"card"},
+    el("div",{class:"box"},el("h3",{},"Эталонный ответ"),el("p",{class:"ref"},"«"+s.ref+"»")),
+    el("div",{class:"box key"},el("h3",{},"Главное"),el("p",{},s.key)),
+    el("div",{class:"crit"},
+      el("h3",{class:"mono",style:"margin:0"},"Проверьте свой ответ"),
+      items.map((t,i)=>el("label",{class:"check"},el("input",{type:"checkbox",id:"crit-"+i,checked:!!freeState.checks[i],onchange:e=>{freeState.checks[i]=e.target.checked;const c=$("#crit-count");if(c)c.textContent=items.filter((_,j)=>freeState.checks[j]).length+" из "+items.length;}}),t)),
+      el("p",{class:"note",id:"crit-count"},done+" из "+items.length)));
+}
+/* ---------- итоги ---------- */
+let confirmReset = false;
+function renderStats(){
+  const runs = P.runs, n = runs.length;
+  const sumS = runs.reduce((a,r)=>a+r.s,0), sumN = runs.reduce((a,r)=>a+r.n,0);
+  const acc = sumN ? Math.round(100*sumS/sumN) : 0;
+  const traps = Object.entries(P.traps).sort((a,b)=>b[1]-a[1]);
+  const topMax = traps.length ? traps[0][1] : 1;
+  const byLvl = [1,2,3].map(l=>{ let r=0,w=0; S.filter(s=>s.lvl===l).forEach(s=>{ const p=P.per[s.id]; if(p){r+=p.r;w+=p.w;} }); return {l,r,w}; });
+  main.append(
+    el("section",{class:"card"},
+      el("h2",{},"Ваш прогресс"),
+      n ? el("div",{class:"stats"},
+        el("div",{class:"stat"},el("b",{},String(n)),el("span",{},plural(n,"раунд","раунда","раундов"))),
+        el("div",{class:"stat"},el("b",{},acc+"%"),el("span",{},"верных ответов")),
+        el("div",{class:"stat"},el("b",{},String(P.bestStreak)),el("span",{},"лучшая серия")))
+        : el("p",{class:"lead"},"Пока пусто. Пройдите первый раунд, и здесь появятся ваши ловушки.")),
+    traps.length ? el("section",{class:"card"},
+      el("h2",{},"Ваши частые ловушки"),
+      el("p",{class:"lead"},"Каждая из них - привычная реакция на колкость. Знать свою главную ловушку уже половина работы."),
+      el("div",{class:"bars"},traps.slice(0,8).map(([k,v])=>bar(k,v,topMax)))) : null,
+    n ? el("section",{class:"card"},
+      el("h2",{},"По уровням"),
+      el("div",{class:"bars"},byLvl.map(x=>{ const t=x.r+x.w; return bar(LEVELS[x.l],t?Math.round(100*x.r/t):0,100,true); }))) : null,
+    n ? el("section",{class:"card"},
+      el("div",{class:"row spread"},
+        el("p",{class:"note"},"Данные хранятся только в этом браузере."),
+        confirmReset
+          ? el("div",{class:"row"},el("button",{class:"btn",type:"button",onclick:()=>{confirmReset=false;render();}},"Отмена"),el("button",{class:"btn primary",type:"button",onclick:()=>{P={runs:[],per:{},traps:{},bestStreak:0};save();confirmReset=false;render();}},"Да, сбросить"))
+          : el("button",{class:"btn",type:"button",onclick:()=>{confirmReset=true;render();}},"Сбросить прогресс"))) : null);
+}
+
+/* ---------- таблица команды ---------- */
+function sendResult(){
+  const name = (P.name||"").trim();
+  if(!TEAM_URL || !name || !run) return;
+  const top = trapCount(run.answers)[0];
+  try{
+    fetch(TEAM_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({name,score:run.score,n:run.list.length,pool:cfg.pool,streak:run.maxStreak,trap:top?top[0]:""})}).catch(()=>{});
+  }catch(e){}
+}
+let team = {rows:null,err:"",loading:false};
+async function loadTeam(){
+  team.loading=true; team.err=""; if(tab==="team") render();
+  try{
+    const r = await fetch(TEAM_URL,{cache:"no-store"});
+    const d = await r.json();
+    team.rows = Array.isArray(d) ? d : [];
+  }catch(e){ team.err="Не получилось загрузить таблицу. Проверьте адрес в TEAM_URL и доступ «Все» у веб-приложения."; }
+  team.loading=false; if(tab==="team") render();
+}
+function aggregate(rows){
+  const m = {};
+  rows.forEach(r=>{
+    const name = String(r.name||"").trim(); if(!name) return;
+    const k = name.toLowerCase();
+    const a = m[k] || (m[k]={name,rounds:0,s:0,n:0,best:0,streak:0,traps:{}});
+    a.rounds++; a.s+=Number(r.score)||0; a.n+=Number(r.n)||0;
+    a.streak = Math.max(a.streak,Number(r.streak)||0);
+    a.best = Math.max(a.best,(Number(r.n)? Math.round(100*(Number(r.score)||0)/Number(r.n)) : 0));
+    if(r.trap) a.traps[r.trap]=(a.traps[r.trap]||0)+1;
+  });
+  return Object.values(m).map(a=>({...a,acc:a.n?Math.round(100*a.s/a.n):0,trap:(Object.entries(a.traps).sort((x,y)=>y[1]-x[1])[0]||[""])[0]}))
+    .sort((a,b)=>b.acc-a.acc || b.rounds-a.rounds);
+}
+function renderTeam(){
+  if(team.rows===null && !team.loading && !team.err) loadTeam();
+  const rows = team.rows ? aggregate(team.rows) : [];
+  const me = (P.name||"").trim().toLowerCase();
+  const table = rows.length ? el("div",{class:"tblwrap"},el("table",{class:"tbl"},
+    el("thead",{},el("tr",{},["#","Имя","Раундов","Верно","Лучший раунд","Серия","Частая ловушка"].map(h=>el("th",{},h)))),
+    el("tbody",{},rows.map((r,i)=>el("tr",{class:r.name.toLowerCase()===me?"me":""},
+      el("td",{class:"n"},String(i+1)),el("td",{},r.name),el("td",{class:"n"},String(r.rounds)),el("td",{class:"n"},r.acc+"%"),el("td",{class:"n"},r.best+"%"),el("td",{class:"n"},String(r.streak)),el("td",{},r.trap||"-")))))) : null;
+  main.append(el("section",{class:"card"},
+    el("div",{class:"row spread"},el("h2",{style:"margin:0"},"Команда"),el("button",{class:"btn",type:"button",onclick:loadTeam,disabled:team.loading},team.loading?"Загрузка…":"Обновить")),
+    el("p",{class:"lead"},"Результаты всех, кто проходил раунды с указанным именем. Таблица сортируется по доле верных ответов."),
+    team.err ? el("p",{class:"note"},team.err) : null,
+    table || (team.loading||team.err ? null : el("p",{class:"lead"},"Пока никто не прошел раунд с именем. Укажите имя на вкладке «Раунд» и пройдите раунд.")),
+    P.name ? null : el("p",{class:"note"},"Вы пока без имени: результаты не отправляются. Имя вводится на вкладке «Раунд».")));
+}
+
+/* ---------- клавиши ---------- */
+document.addEventListener("keydown",e=>{
+  if(tab!=="round"||!run||run.done) return;
+  if(e.target && /^(TEXTAREA|INPUT|SELECT)$/.test(e.target.tagName)) return;
+  if(run.picked===null && /^[1-4]$/.test(e.key)){
+    const s = run.list[run.i], order = run.order && run.order[s.id];
+    if(order) pick(order[Number(e.key)-1]);
+  } else if(run.picked!==null && e.key==="Enter"){ /* кнопка «Дальше» в фокусе */ }
+});
+
+/* старт */
+const h = (location.hash||"").slice(1);
+if(TEAM_URL) document.getElementById("tab-team").hidden=false;
+if(["round","free","stats"].concat(TEAM_URL?["team"]:[]).includes(h)) setTab(h); else render();
+</script>
+
+</body>
+</html>
